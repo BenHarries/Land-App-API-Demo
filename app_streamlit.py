@@ -91,8 +91,8 @@ def fetch_projects(api_key, template_type):
     return resp.json().get("data", [])
 
 # 2. Fetch features for a project
-def fetch_features(project_id):
-    url = f"{API_BASE}/projects/{project_id}/features?apiKey={API_KEY}"
+def fetch_features(project_id, api_key):
+    url = f"{API_BASE}/projects/{project_id}/features?apiKey={api_key}"
     resp = requests.get(url)
     resp.raise_for_status()
     return resp.json().get("data", [])
@@ -118,7 +118,7 @@ else:
             st.session_state['refresh'] += 1
 
         # Use session state to trigger re-fetch
-        features = fetch_features(project_id)
+        features = fetch_features(project_id, api_key_input)
         st.write(f"Found {len(features)} features for project '{selected_project}'")
 
         # Reproject features (ensure all downstream code uses reprojected features)
