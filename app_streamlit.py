@@ -106,7 +106,7 @@ else:
     projects = fetch_projects(api_key_input, selected_template)
     project_options = {proj["name"]: proj["id"] for proj in projects}
 
-    selected_project = st.selectbox("Select a project", list(project_options.keys()))
+    selected_project = st.selectbox("Select a plan", list(project_options.keys()))
 
     if selected_project:
         project_id = project_options[selected_project]
@@ -119,7 +119,7 @@ else:
 
         # Use session state to trigger re-fetch
         features = fetch_features(project_id, api_key_input)
-        st.write(f"Found {len(features)} features for project '{selected_project}'")
+        st.write(f"Found {len(features)} features for plan '{selected_project}'")
 
         # Reproject features (ensure all downstream code uses reprojected features)
         features_reprojected = [reproject_feature(f) for f in features]
