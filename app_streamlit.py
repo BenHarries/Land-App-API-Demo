@@ -104,45 +104,63 @@ if not api_key_input:
     st_folium(m, width=700, height=500)
 else:
     projects = fetch_projects(api_key_input, selected_template)
-    project_options = {proj["name"]: proj["id"] for proj in projects}
 
-    selected_project = st.selectbox("Select a plan", list(project_options.keys()))
+    if projects:
+        # Group projects by map
+        maps = {}
+        for proj in projects:
+            map_name = proj.get("mapName", "Uncategorized")
+            if map_name not in maps:
+                maps[map_name] = []
+            maps[map_name].append(proj)
 
-    if selected_project:
-        project_id = project_options[selected_project]
+        sorted_map_names = sorted(maps.keys())
+        selected_map_name = st.selectbox("Select a map", sorted_map_names)
 
-        # Add a refresh button
-        if 'refresh' not in st.session_state:
-            st.session_state['refresh'] = 0
-        if st.button('Refresh Features'):
-            st.session_state['refresh'] += 1
+        if selected_map_name:
+            projects_in_map = maps[selected_map_name]
+            project_options = {proj["name"]: proj["id"] for proj in projects_in_map}
 
-        # Use session state to trigger re-fetch
-        features = fetch_features(project_id, api_key_input)
-        st.write(f"Found {len(features)} features for plan '{selected_project}'")
+            sorted_plan_names = project_options.keys()
+            selected_project = st.selectbox("Select a plan", sorted_plan_names)
 
-        # Reproject features (ensure all downstream code uses reprojected features)
-        features_reprojected = [reproject_feature(f) for f in features]
+            if selected_project:
+                project_id = project_options[selected_project]
 
-        # Create a folium map
-        m = folium.Map(location=[51.5, -0.1], zoom_start=6)  # Default UK center
+                # Add a refresh button
+                if 'refresh' not in st.session_state:
+                    st.session_state['refresh'] = 0
+                if st.button('Refresh Features'):
+                    st.session_state['refresh'] += 1
 
-        # Add features as GeoJSON with thicker lines
-        for feature in features_reprojected:
-            folium.GeoJson(
-                feature,
-                style_function=lambda x: {
-                    "color": "#3388ff",
-                    "weight": 5,  # Increased line thickness
-                    "opacity": 1.0,
-                    "fillOpacity": 0.2,
-                }
-            ).add_to(m)
+                # Use session state to trigger re-fetch
+                features = fetch_features(project_id, api_key_input)
+                st.write(f"Found {len(features)} features for plan '{selected_project}'")
 
-        # Zoom to bounds (use reprojected features)
-        all_coords = get_all_coords(features_reprojected)
-        if all_coords:
-            lats, lons = zip(*all_coords)
-            m.fit_bounds([[min(lons), min(lats)], [max(lons), max(lats)]])
+                # Reproject features (ensure all downstream code uses reprojected features)
+                features_reprojected = [reproject_feature(f) for f in features]
 
-        st_folium(m, width=700, height=500)
+                # Create a folium map
+                m = folium.Map(location=[51.5, -0.1], zoom_start=6)  # Default UK center
+
+                # Add features as GeoJSON with thicker lines
+                for feature in features_reprojected:
+                    folium.GeoJson(
+                        feature,
+                        style_function=lambda x: {
+                            "color": "#3388ff",
+                            "weight": 5,  # Increased line thickness
+                            "opacity": 1.0,
+                            "fillOpacity": 0.2,
+                        }
+                    ).add_to(m)
+
+                # Zoom to bounds (use reprojected features)
+                all_coords = get_all_coords(features_reprojected)
+                if all_coords:
+                    lats, lons = zip(*all_coords)
+                    m.fit_bounds([[min(lons), min(lats)], [max(lons), max(lats)]])
+
+                st_folium(m, width=700, height=500)
+    else:
+        st.write("No projects found for the selected template type.")
