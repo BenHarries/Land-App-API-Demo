@@ -44,8 +44,45 @@ TEMPLATE_TYPES = [
     "BPS", "CSS", "FRM", "RLE1", "OWNERSHIP", "FR1", "SALES_PLAN", "VALUATION_PLAN", "ESS", "UKHAB", "UKHAB_V2", "USER", "LAND_MANAGEMENT", "LAND_MANAGEMENT_V2", "SFI2022", "SFI2023", "SFI2024", "PEAT_ASSESSMENT", "OSMM", "FER", "WCT", "BLANK_SURVEY", "SOIL_SURVEY", "AGROFORESTRY", "CSS_2025", "HEALTHY_HEDGEROWS", "SAF"
 ]
 
+# Remove outline and box-shadow from Streamlit buttons
+st.markdown(
+    """
+    <style>
+    button[kind="primary"], button[kind="secondary"], .stButton > button {
+        outline: none !important;
+        box-shadow: none !important;
+    }
+    .st-expander > details > summary,
+    .st-expander > details > summary:focus,
+    .st-expander > details > summary:active,
+    .st-expander > details > summary:hover {
+        outline: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: inherit;
+    }
+    .st-expander > details[open] > summary,
+    .st-expander > details[open] > summary:focus,
+    .st-expander > details[open] > summary:active,
+    .st-expander > details[open] > summary:hover {
+        outline: none !important;
+        box-shadow: none !important;
+        border: none !important;
+        background: inherit;
+    }
+    .st-expander > details > summary::-webkit-details-marker {
+        display: none;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+
 # User input for API key
 api_key_input = st.text_input("Enter your Land App API Key", value="", type="password")
+
+# Checkbox for published filter
+published_only = st.checkbox("Show only published projects")
 
 # User selects template type
 selected_template = st.selectbox(
@@ -84,11 +121,13 @@ selected_template = st.selectbox(
 )
 
 # 1. Fetch projects (now takes api_key and template_type)
-def fetch_projects(api_key, template_type):
+def fetch_projects(api_key, template_type, published_only=False):
     url = f"{API_BASE}/projects?apiKey={api_key}&page=0&size=1000&type={template_type}&from=2025-01-01T06:00:00.000Z"
+    if published_only:
+        url += "&filter=published"
     resp = requests.get(url)
     resp.raise_for_status()
-    return resp.json().get("data", [])
+    return resp.json().get("data", []), url
 
 # 2. Fetch features for a project
 def fetch_features(project_id, api_key):
@@ -103,7 +142,13 @@ if not api_key_input:
     m = folium.Map(location=[54.5, -3], zoom_start=6)  # Centered on GB
     st_folium(m, width=700, height=500)
 else:
-    projects = fetch_projects(api_key_input, selected_template)
+    # --- Fetch projects and show endpoint/response preview ---
+    projects, projects_url = fetch_projects(api_key_input, selected_template, published_only)
+
+    with st.expander("Show projects endpoint URL"):
+        st.code(f"GET {projects_url}", language="text")
+    with st.expander("Show projects JSON response"):
+        st.json(projects)
 
     if projects:
         # Group projects by map
@@ -127,14 +172,15 @@ else:
             if selected_project:
                 project_id = project_options[selected_project]
 
-                # Add a refresh button
-                if 'refresh' not in st.session_state:
-                    st.session_state['refresh'] = 0
-                if st.button('Refresh Features'):
-                    st.session_state['refresh'] += 1
-
-                # Use session state to trigger re-fetch
+                # --- Fetch features and show endpoint/response preview ---
+                features_url = f"{API_BASE}/projects/{project_id}/features?apiKey={api_key_input}"
                 features = fetch_features(project_id, api_key_input)
+
+                with st.expander("Show features endpoint URL"):
+                    st.code(f"GET {features_url}", language="text")
+                with st.expander("Show features JSON response"):
+                    st.json(features)
+
                 st.write(f"Found {len(features)} features for plan '{selected_project}'")
 
                 # Reproject features (ensure all downstream code uses reprojected features)
