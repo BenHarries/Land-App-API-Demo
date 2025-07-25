@@ -208,5 +208,25 @@ else:
                     m.fit_bounds([[min(lons), min(lats)], [max(lons), max(lats)]])
 
                 st_folium(m, width=700, height=500)
+
+                # Show a table of the features data just below the map
+                if features:
+                    import pandas as pd
+                    # Try to extract common properties for the table
+                    def flatten_feature(feat):
+                        props = feat.get('properties', {})
+                        flat = {
+                            'id': feat.get('id', ''),
+                            'name': props.get('name', ''),
+                            'type': feat.get('geometry', {}).get('type', ''),
+                            'createdAt': feat.get('createdAt', ''),
+                            'updatedAt': feat.get('updatedAt', ''),
+                        }
+                        # Add more properties if needed
+                        flat.update({k: v for k, v in props.items() if k not in flat})
+                        return flat
+                    table_data = [flatten_feature(f) for f in features]
+                    df = pd.DataFrame(table_data)
+                    st.dataframe(df, use_container_width=True)
     else:
         st.write("No projects found for the selected template type.")
